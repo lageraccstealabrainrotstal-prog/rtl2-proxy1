@@ -1,13 +1,16 @@
 {
-  "name": "rtl2-proxy",
+  "name": "rtl2-proxy1",
   "version": "1.0.0",
+  "description": "Rotube Life 2 dashboard static + proxy for whut.dev",
   "main": "server.js",
-  "type": "module",
   "scripts": {
-    "start": "node server.js"
+    "start": "node server.js",
+    "dev": "NODE_ENV=development node server.js"
+  },
+  "engines": {
+    "node": ">=18"
   },
   "dependencies": {
-    "express": "^4.18.2",
-    "node-fetch": "^3.3.2"
+    "express": "^4.18.2"
   }
 }
