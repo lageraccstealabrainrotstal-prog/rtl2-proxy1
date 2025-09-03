@@ -1,0 +1,400 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Rotube Life 2 — Stats Dashboard</title>
+<meta name="color-scheme" content="light dark">
+<style>
+:root{
+  --bg:#f6f7fb;--card:#fff;--muted:#6b7280;--accent:#0066ff;--danger:#dc2626;--glass: rgba(255,255,255,0.6);
+  --radius:12px; --shadow: 0 6px 18px rgba(11,12,16,0.06);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  color-scheme: light;
+}
+[data-theme="dark"]{ --bg:#0b0e14; --card:#0f1724; --muted:#9ca3af; --accent:#4f46e5; --danger:#ff6b6b; --glass: rgba(255,255,255,0.03); color: #e6eef8; color-scheme: dark }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:linear-gradient(180deg,var(--bg),#e9eef9);padding:18px;}
+.app{max-width:1200px;margin:0 auto;display:grid;gap:14px}
+.header{display:flex;align-items:center;gap:12px}
+.brand{font-weight:700;font-size:18px}
+.controls{margin-left:auto;display:flex;gap:8px;align-items:center}
+.input{display:flex;gap:6px;align-items:center}
+.input input{padding:8px 10px;border-radius:8px;border:1px solid rgba(0,0,0,0.06);min-width:220px}
+.btn{background:var(--accent);color:#fff;padding:8px 10px;border-radius:8px;border:0;cursor:pointer}
+.small{padding:6px 8px;font-size:13px}
+.badge{background:var(--glass);padding:6px 8px;border-radius:999px;font-weight:600;font-size:13px}
+.topbar{display:flex;gap:8px;align-items:center}
+.pill{background:var(--card);padding:8px;border-radius:10px;box-shadow:var(--shadow);display:flex;gap:8px;align-items:center}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+.card{background:var(--card);padding:12px;border-radius:12px;box-shadow:var(--shadow)}
+.kpi{grid-column:span 3;display:flex;flex-direction:column;gap:8px}
+.kpi .value{font-weight:800;font-size:20px}
+.chart{grid-column:span 6;height:180px}
+.content{display:flex;flex-direction:column;gap:10px}
+.tabs{display:flex;gap:8px}
+.tab{padding:8px 10px;border-radius:8px;background:transparent;border:1px solid transparent;cursor:pointer}
+.tab[aria-selected="true"]{border-color:var(--accent);box-shadow:var(--shadow)}
+.skeleton{background:linear-gradient(90deg,#eee,#f5f5f5,#eee);height:14px;border-radius:6px}
+.footer{font-size:12px;color:var(--muted)}
+/* accessibility focus */
+:focus{outline:3px solid rgba(0,102,255,0.18);outline-offset:2px}
+@media (max-width:900px){.kpi{grid-column:span 6}.chart{grid-column:span 12;height:140px}}
+</style>
+</head>
+<body>
+<div class="app" id="app" tabindex="0">
+  <header class="header" role="banner">
+    <div class="brand">Rotube Life 2 — Stats</div>
+    <div class="input" role="search">
+      <label for="username" class="visually-hidden">Username</label>
+      <input id="username" name="username" autocomplete="username" placeholder="Benutzername (z.B. Leif123)" aria-label="Benutzername" />
+      <button id="check" class="btn small">Check Stats</button>
+      <div class="badge" id="endpointBadge" aria-live="polite">endpoint: whut.dev</div>
+    </div>
+    <div class="controls" role="toolbar" aria-label="Options">
+      <div class="topbar pill" role="group" aria-label="Theme">
+        <button id="themeToggle" class="tab" aria-pressed="false">Dark</button>
+        <button id="perfToggle" class="tab" aria-pressed="false">Performance</button>
+        <button id="demoToggle" class="tab" aria-pressed="false">Demo</button>
+      </div>
+      <div class="topbar pill" role="group" aria-label="AutoRefresh">
+        <label for="autoRefresh" class="visually-hidden">Auto Refresh</label>
+        <select id="autoRefresh" aria-label="Auto refresh interval">
+          <option value="0">Aus</option>
+          <option value="15">15s</option>
+          <option value="30">30s</option>
+          <option value="60">60s</option>
+          <option value="120">120s</option>
+        </select>
+      </div>
+    </div>
+  </header>
+
+  <nav class="tabs" role="tablist" aria-label="Main tabs">
+    <button class="tab" role="tab" data-tab="dashboard" aria-selected="true">Dashboard</button>
+    <button class="tab" role="tab" data-tab="alltime">All Time</button>
+    <button class="tab" role="tab" data-tab="current">Current</button>
+    <button class="tab" role="tab" data-tab="daily">Daily</button>
+    <button class="tab" role="tab" data-tab="hourly">Hourly</button>
+    <button class="tab" role="tab" data-tab="equipped">Equipped</button>
+    <button class="tab" role="tab" data-tab="pcparts">PC Parts</button>
+    <button class="tab" role="tab" data-tab="peripherals">Peripherals</button>
+    <button class="tab" role="tab" data-tab="misc">Misc</button>
+    <button class="tab" role="tab" data-tab="lastonline">Last Online</button>
+  </nav>
+
+  <main id="main" class="content" role="main">
+    <section id="status" class="card" aria-live="polite"></section>
+
+    <section class="grid">
+      <div class="card kpi" id="kpis">
+        <div><div class="label">Subscribers</div><div id="k_subs" class="value">—</div></div>
+        <div><div class="label">Cash</div><div id="k_cash" class="value">—</div></div>
+        <div><div class="label">Gems</div><div id="k_gems" class="value">—</div></div>
+        <div><div class="label">Videos</div><div id="k_videos" class="value">—</div></div>
+        <div><div class="label">Playtime</div><div id="k_play" class="value">—</div></div>
+      </div>
+
+      <div class="card chart" id="barChartWrap">
+        <canvas id="barChart" width="800" height="320" aria-label="Bar chart" role="img"></canvas>
+      </div>
+
+      <div class="card chart" id="lineChartWrap">
+        <canvas id="lineChart" width="800" height="320" aria-label="Line chart" role="img"></canvas>
+      </div>
+
+      <div class="card chart" id="donutWrap">
+        <canvas id="donutChart" width="400" height="320" aria-label="Donut chart" role="img"></canvas>
+      </div>
+    </section>
+
+    <section id="historySection" class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <strong>History</strong>
+        <div>
+          <button id="exportJson" class="tab small">Export JSON</button>
+          <button id="exportCsv" class="tab small">Export CSV</button>
+          <button id="copyLink" class="tab small">Copy Link</button>
+        </div>
+      </div>
+      <div id="historyTable" style="margin-top:10px;max-height:220px;overflow:auto"></div>
+    </section>
+
+    <footer class="footer">Built for performance • Demo mode available • Timezone auto-detected</footer>
+  </main>
+</div>
+
+<script type="module">
+/*
+  Rotube Life 2 — single-file dashboard
+  - Features: POST fetch with URL params, CORS fallback to ./api/rtl2/lookup
+  - Performance focused: rAF updates, minimal DOM churn, worker for formatting
+*/
+const DEFAULT_ENDPOINT = 'https://whut.dev/api/rtl2/lookup';
+const app = document.getElementById('app');
+const usernameInput = document.getElementById('username');
+const checkBtn = document.getElementById('check');
+const endpointBadge = document.getElementById('endpointBadge');
+const statusEl = document.getElementById('status');
+const demoToggle = document.getElementById('demoToggle');
+const perfToggle = document.getElementById('perfToggle');
+const themeToggle = document.getElementById('themeToggle');
+const autoRefresh = document.getElementById('autoRefresh');
+const exportJson = document.getElementById('exportJson');
+const exportCsv = document.getElementById('exportCsv');
+const copyLink = document.getElementById('copyLink');
+
+let state = {
+  endpoint: localStorage.getItem('rtl_endpoint') || DEFAULT_ENDPOINT,
+  lastUsername: localStorage.getItem('rtl_lastUsername') || '',
+  demo: localStorage.getItem('rtl_demo') === '1',
+  perfMode: localStorage.getItem('rtl_perf') === '1',
+  theme: localStorage.getItem('rtl_theme') || 'light',
+  locale: localStorage.getItem('rtl_locale') || 'de-DE',
+  compact: localStorage.getItem('rtl_compact') === '1'
+};
+endpointBadge.textContent = 'endpoint: ' + (state.endpoint.includes('whut.dev') ? 'whut.dev' : 'proxy');
+usernameInput.value = new URLSearchParams(location.search).get('u') || state.lastUsername || '';
+updateTheme();
+
+// Worker for formatting (inlined)
+const formatterWorker = new Worker(URL.createObjectURL(new Blob([`self.onmessage = e => {
+  const {cmd, v, locale, compact} = e.data;
+  try{
+    if(cmd==='number'){
+      const n = (typeof v==='string') ? Number(String(v).replace(/[^0-9.\-]/g,'')) : Number(v);
+      const opts = compact?{notation:'compact',maximumFractionDigits:2}:{maximumFractionDigits:0};
+      const out = isFinite(n) ? new Intl.NumberFormat(locale, opts).format(n) : '—';
+      self.postMessage({ok:true,out});
+    }else if(cmd==='playtime'){
+      const mins = Number(v)||0; const days = Math.floor(mins/1440); const hh = Math.floor((mins%1440)/60); const mm = Math.floor(mins%60);
+      const out = `${days}d ${String(hh).padStart(2,'0')}:${String(mm).padStart(2,'0')}`;
+      self.postMessage({ok:true,out});
+    }
+  }catch(err){self.postMessage({ok:false,err:String(err)})}
+}`],{type:'text/javascript'})));
+
+// Utilities
+const dom = (id)=>document.getElementById(id);
+const setStatus = (msg, level='info')=>{
+  statusEl.textContent = msg;
+  statusEl.style.color = level==='error'? 'var(--danger)': '';
+};
+
+// IndexedDB helper (simple)
+function openDB(){
+  return new Promise((res,rej)=>{
+    const r = indexedDB.open('rtl2',1);
+    r.onupgradeneeded = ()=>{ r.result.createObjectStore('hist',{keyPath:'id',autoIncrement:true}); };
+    r.onsuccess = ()=>res(r.result);
+    r.onerror = ()=>rej(r.error);
+  });
+}
+async function addHistory(username,data){
+  try{
+    const db = await openDB(); const tx = db.transaction('hist','readwrite'); const store = tx.objectStore('hist');
+    await store.add({username,timestamp:Date.now(),data});
+    tx.oncomplete = ()=>{
+      // prune
+      const r = db.transaction('hist','readwrite').objectStore('hist').openCursor();
+      let count=0, toDelete=[];
+      r.onsuccess = e=>{
+        const c = e.target.result; if(!c) return;
+        count++; if(count>500) toDelete.push(c.primaryKey);
+        c.continue();
+      };
+      r.oncomplete = ()=>{
+        if(toDelete.length){ const dtx=db.transaction('hist','readwrite'); const ds=dtx.objectStore('hist'); toDelete.forEach(k=>ds.delete(k)); }
+      }
+    }
+  }catch(e){console.warn('IDB add fail',e)}
+}
+
+// Fetch with POST and abort/retry/backoff
+async function fetchWithRetry(url, retries=3){
+  const attempts = [250,750,1750];
+  let lastErr;
+  for(let i=0;i<retries;i++){
+    const ac = new AbortController();
+    const timeout = setTimeout(()=>ac.abort(),10000);
+    try{
+      // POST with no body, query params in url
+      const r = await fetch(url, {method:'POST', headers:{'Accept':'application/json'}, signal:ac.signal});
+      clearTimeout(timeout);
+      if(!r.ok) throw new Error('Status '+r.status);
+      const json = await r.json();
+      return {res:json, usedProxy: url.startsWith('./') };
+    }catch(err){ lastErr=err; if(err.name==='AbortError') lastErr = new Error('timeout'); await new Promise(r=>setTimeout(r, attempts[i]||500)); }
+  }
+  throw lastErr;
+}
+
+// Parser tolerant
+function tolerantGet(obj, key){
+  if(!obj) return undefined; const lower = key.toLowerCase();
+  return Object.keys(obj).find(k=>k.toLowerCase()===lower) ? obj[Object.keys(obj).find(k=>k.toLowerCase()===lower)] : undefined;
+}
+function parseNumber(v){ if(v==null) return NaN; if(typeof v==='number') return v; try{ return Number(String(v).replace(/[^0-9\-\.]/g,'')); }catch{ return NaN } }
+
+// Chart helpers — minimal canvas charts
+function drawBar(canvas,labels,values,options={}){
+  const ctx = canvas.getContext('2d'); const dpr = devicePixelRatio||1; const w=canvas.width, h=canvas.height; canvas.width = w*dpr; canvas.height = h*dpr; canvas.style.width = w+'px'; canvas.style.height = h+'px'; ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const max = Math.max(...values,1);
+  const pad=20; const bw = (w-2*pad)/values.length*0.6; values.forEach((v,i)=>{
+    const x = pad + i*((w-2*pad)/values.length) + bw*0.2; const barH = (v/max)*(h-60);
+    const y = h-30-barH; ctx.fillStyle = options.color||'#4f46e5'; roundRect(ctx,x,y,bw,barH,6); ctx.fill();
+    ctx.fillStyle='#999'; ctx.font='12px system-ui'; ctx.textAlign='center'; ctx.fillText(labels[i], x+bw/2, h-10);
+  });
+}
+function drawLine(canvas,values,options={}){
+  const ctx = canvas.getContext('2d'); const dpr = devicePixelRatio||1; const w=canvas.width, h=canvas.height; canvas.width = w*dpr; canvas.height = h*dpr; canvas.style.width = w+'px'; canvas.style.height = h+'px'; ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const max = Math.max(...values,1); const min = Math.min(...values,0);
+  ctx.beginPath(); values.forEach((v,i)=>{ const x = 10 + i*((w-20)/(values.length-1||1)); const y = h-30 - ((v-min)/(max-min||1))*(h-60); if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y); });
+  ctx.strokeStyle = options.color || '#06f'; ctx.lineWidth=2; ctx.stroke();
+}
+function drawDonut(canvas,a,b,options={}){
+  const ctx = canvas.getContext('2d'); const dpr = devicePixelRatio||1; const w=canvas.width, h=canvas.height; canvas.width = w*dpr; canvas.height = h*dpr; canvas.style.width = w+'px'; canvas.style.height = h+'px'; ctx.scale(dpr,dpr);
+  ctx.clearRect(0,0,w,h);
+  const total = Math.max(a+b,1); const cx = w/2, cy = h/2, r = Math.min(w,h)/3;
+  let start= -Math.PI/2; const aAng = (a/total)*(Math.PI*2); ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,start+aAng); ctx.closePath(); ctx.fillStyle='#06f'; ctx.fill(); start += aAng; ctx.beginPath(); ctx.moveTo(cx,cy); ctx.arc(cx,cy,r,start,start + ( (b/total)*(Math.PI*2) )); ctx.closePath(); ctx.fillStyle='#ffb703'; ctx.fill();
+  // inner circle
+  ctx.beginPath(); ctx.fillStyle='var(--card)'; ctx.arc(cx,cy,r*0.6,0,Math.PI*2); ctx.fill();
+}
+function roundRect(ctx,x,y,w,h,r){ ctx.beginPath(); ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r); ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath(); }
+
+// UI update minimal using rAF
+let pendingRender=false; let renderQueue=[]; function scheduleRender(fn){ renderQueue.push(fn); if(!pendingRender){ pendingRender=true; requestAnimationFrame(()=>{ pendingRender=false; const q = renderQueue.splice(0); for(const f of q) try{ f(); } catch(e){console.error(e)} }); } }
+
+// Main handler
+let fetchLock=false; async function doLookup(u, opts={useProxy:false}){
+  if(!u) return setStatus('Bitte Benutzername eingeben', 'error');
+  if(fetchLock) return setStatus('Fetch busy — warten...', 'error');
+  // validation
+  if(!/^[A-Za-z0-9 _-]{3,32}$/.test(u)) return setStatus('Ungültiger Benutzername', 'error');
+  fetchLock=true; setStatus('Lade...', 'info');
+  let url = (opts.useProxy ? './api/rtl2/lookup' : state.endpoint) + '?username=' + encodeURIComponent(u) + '&format=json';
+  try{
+    const out = await fetchWithRetry(url);
+    // if success false
+    const json = out.res;
+    endpointBadge.textContent = 'endpoint: ' + (out.usedProxy ? 'proxy' : (state.endpoint.includes('whut.dev') ? 'whut.dev' : state.endpoint));
+    if(!json || json.success===false) {
+      const err = (json && json.error) ? json.error : 'Unbekannter Fehler';
+      setStatus('Fehler: '+err,'error');
+      fetchLock=false; return;
+    }
+    const data = json.data || json;
+    // map tolerant
+    const all = tolerantGet(data,'AllTime')||tolerantGet(data,'alltime')||tolerantGet(data,'all_time')||{};
+    const cur = tolerantGet(data,'Current')||{};
+    const daily = tolerantGet(data,'Daily')||{};
+    // format and render
+    formatterWorker.postMessage({cmd:'number', v: tolerantGet(all,'Subscribers')||tolerantGet(cur,'Subscribers')||0, locale:state.locale, compact:state.compact});
+    formatterWorker.onmessage = e=>{
+      if(e.data.ok) scheduleRender(()=> dom('k_subs').textContent = e.data.out );
+    }
+    formatterWorker.postMessage({cmd:'number', v: tolerantGet(all,'Cash')||0, locale:state.locale, compact:state.compact});
+    formatterWorker.onmessage = e=>{ if(e.data.ok) scheduleRender(()=> dom('k_cash').textContent = e.data.out ); }
+    // playtime
+    formatterWorker.postMessage({cmd:'playtime', v: tolerantGet(all,'Playtime')||0});
+    formatterWorker.onmessage = e=>{ if(e.data.ok) scheduleRender(()=> dom('k_play').textContent = e.data.out ); }
+
+    scheduleRender(()=>{
+      dom('k_gems').textContent = tolerantGet(all,'Gems') || tolerantGet(cur,'Gems') || '—';
+      dom('k_videos').textContent = tolerantGet(all,'VideosProduced') || '—';
+    });
+
+    // charts
+    const bar = dom('barChart'); const line = dom('lineChart'); const donut = dom('donutChart');
+    const vAllSubs = Number(parseNumber(tolerantGet(all,'Subscribers'))||0);
+    const vCurSubs = Number(parseNumber(tolerantGet(cur,'Subscribers'))||0);
+    const vDailySubs = Number(parseNumber(tolerantGet(daily,'Subscribers'))||0);
+    if(!state.perfMode){ drawBar(bar,['All','Current','Daily'],[vAllSubs,vCurSubs,vDailySubs]); drawDonut(donut, Number(parseNumber(tolerantGet(all,'Cash'))||0), Number(parseNumber(tolerantGet(all,'Gems'))||0)); }
+
+    // save history
+    addHistory(u, data);
+    localStorage.setItem('rtl_lastUsername', u);
+    setStatus('Erfolg', 'info');
+  }catch(err){
+    console.error(err);
+    if(String(err).toLowerCase().includes('cors') || String(err).toLowerCase().includes('typeerror')){
+      // attempt proxy fallback
+      setStatus('CORS/Netzwerk — versuche Proxy...','info');
+      try{ await doLookup(u, {useProxy:true}); return; }catch(e){ setStatus('Proxy fehlgeschlagen: '+String(e),'error'); }
+    }else setStatus('Fehler: '+String(err),'error');
+  }finally{ fetchLock=false; }
+}
+
+// tabs keyboard
+document.querySelectorAll('[role=tab]').forEach(t=>t.addEventListener('click', e=>{
+  document.querySelectorAll('[role=tab]').forEach(x=>x.setAttribute('aria-selected','false'));
+  t.setAttribute('aria-selected','true'); setStatus('Tab: '+t.dataset.tab);
+}));
+
+// events
+checkBtn.addEventListener('click', ()=>doLookup(usernameInput.value.trim()));
+usernameInput.addEventListener('keydown', e=>{ if(e.key==='Enter') doLookup(usernameInput.value.trim()); });
+
+themeToggle.addEventListener('click', ()=>{ state.theme = state.theme==='light'?'dark':'light'; localStorage.setItem('rtl_theme', state.theme); updateTheme(); });
+perfToggle.addEventListener('click', ()=>{ state.perfMode = !state.perfMode; localStorage.setItem('rtl_perf', state.perfMode? '1':'0'); perfToggle.setAttribute('aria-pressed', state.perfMode); setStatus('Performance mode '+(state.perfMode?'ON':'OFF')); });
+demoToggle.addEventListener('click', ()=>{ state.demo = !state.demo; localStorage.setItem('rtl_demo', state.demo? '1':'0'); demoToggle.setAttribute('aria-pressed', state.demo); if(state.demo) renderDemo(); else setStatus('Demo off'); });
+
+autoRefresh.addEventListener('change', ()=>{
+  localStorage.setItem('rtl_autorefresh', autoRefresh.value); startAutoRefresh();
+});
+
+exportJson.addEventListener('click', async ()=>{
+  const u = usernameInput.value.trim()||state.lastUsername; if(!u) return setStatus('Kein Benutzer');
+  // pull last history entry for user
+  const db = await openDB(); const tx = db.transaction('hist'); const store = tx.objectStore('hist'); const r = store.openCursor(null,'prev'); r.onsuccess = e=>{ const c = e.target.result; if(!c) return setStatus('Keine History'); const blob = new Blob([JSON.stringify(c.value.data, null, 2)],{type:'application/json'}); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = `${u}.json`; a.click(); URL.revokeObjectURL(url); };
+});
+
+exportCsv.addEventListener('click', async ()=>{
+  const db = await openDB(); const tx = db.transaction('hist'); const store = tx.objectStore('hist'); const all=[]; store.openCursor().onsuccess = e=>{ const c=e.target.result; if(!c){ if(!all.length) return setStatus('Keine History'); const csv = all.map(it=>`${it.username},${new Date(it.timestamp).toISOString()},"${JSON.stringify(it.data).replace(/"/g,'""')}"`).join('\n'); const blob=new Blob([csv],{type:'text/csv'}); const url=URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download='history.csv'; a.click(); URL.revokeObjectURL(url); return; } all.push(c.value); c.continue(); };
+});
+
+copyLink.addEventListener('click', ()=>{ const u = usernameInput.value.trim(); if(!u) return setStatus('Kein Benutzer'); const url = new URL(location.href); url.searchParams.set('u',u); navigator.clipboard.writeText(url.toString()).then(()=>setStatus('Link kopiert'));
+});
+
+// Demo renderer
+function renderDemo(){
+  const demoData = {
+    AllTime:{Subscribers:'4121244954383852',Cash:'$838453343427439',Gems:'997544',VideosProduced:'75385',Playtime:'79754'},
+    Current:{Channels:5,Subscribers:'3732970260472927',Cash:'$613660393314684',Gems:'201994'},
+    Daily:{Subscribers:'114367978935287',Cash:'$2241053575639',Gems:3346,VideosProduced:69,Playtime:86},
+    Equipped:{Property:'Lvl7',Hoverboard:'Hoverboard_S1_Clan1'},
+    PCParts:{CPU:'Limitless_Purple_CPU',GPU:'InfernoX_GPU',RAM:'Makora_RAM',MOTHERBOARD:'RBX_S1_Motherboard'},
+    Peripherals:{PC:'Lvl20',Monitor:'Lvl20',Mouse:'Lvl20',Keyboard:'Lvl20',Camera:'Lvl20',Microphone:'Lvl20'},
+    Misc:{ExploitingConfidence:'0.000000%'},
+    LastOnline:'2025-09-03T14:45:34+02:00'
+  };
+  // populate UI
+  dom('k_subs').textContent = '4,121,244,954,383,852'; dom('k_cash').textContent = '$838,453,343,427,439'; dom('k_gems').textContent = '997,544'; dom('k_videos').textContent = '75,385'; dom('k_play').textContent = '55d 07:14';
+  // charts
+  const bar = dom('barChart'); drawBar(bar,['All','Current','Daily'],[4121244954383852,3732970260472927,114367978935287]); drawDonut(dom('donutChart'),838453343427439,997544);
+  setStatus('Demo data loaded');
+}
+
+// Auto refresh
+let autoTimer=null; function startAutoRefresh(){ if(autoTimer) { clearInterval(autoTimer); autoTimer=null; }
+  const v = Number(autoRefresh.value); if(v>0){ autoTimer = setInterval(()=>{ const u = usernameInput.value.trim(); if(u) doLookup(u); }, v*1000); }
+}
+
+// theme
+function updateTheme(){ document.documentElement.setAttribute('data-theme', state.theme); themeToggle.textContent = state.theme==='light' ? 'Dark' : 'Light'; }
+
+// init
+(function init(){ if(state.demo) renderDemo(); if(usernameInput.value) { setTimeout(()=>doLookup(usernameInput.value.trim()),200); }
+  startAutoRefresh();
+})();
+
+// perf overlay (mini)
+let fps=0, frames=0, last=performance.now(); function trackFPS(){ const now=performance.now(); frames++; if(now-last>1000){ fps=frames; frames=0; last=now; } requestAnimationFrame(trackFPS); } trackFPS();
+
+</script>
+</body>
+</html>
